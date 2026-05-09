@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campo Simple Fertilizante — Mi Saldo</title>
+<meta property="og:title" content="Mi saldo de fertilizante · Campo Simple">
+<meta property="og:description" content="Consultá tu saldo disponible y fecha de vencimiento">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+
+.card { background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.10); border: 1px solid #e5e7eb; width: 100%; max-width: 400px; }
+
+.card-header { background: linear-gradient(135deg, #2C703C, #4a9e5c); padding: 24px 24px 28px; }
+.brand-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.brand-icon { width: 26px; height: 26px; background: rgba(255,255,255,.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.brand-name { font-size: 12px; font-weight: 600; color: #fff; }
+.saldo-lbl { font-size: 11px; color: rgba(255,255,255,.75); margin-bottom: 3px; }
+.saldo-num { font-size: 44px; font-weight: 800; color: #fff; line-height: 1; }
+.saldo-unit { font-size: 14px; color: rgba(255,255,255,.85); margin-top: 3px; }
+.saldo-emp { font-size: 12px; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+.progress-wrap { padding: 16px 24px 0; }
+.progress-meta { display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 5px; }
+.progress-bar { height: 8px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: #2C703C; border-radius: 99px; transition: width .4s; }
+.progress-pct { font-size: 11px; color: #9ca3af; text-align: right; margin-top: 3px; }
+
+.alert-box { margin: 14px 24px; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+.alert-box.ok      { background: #dcfce7; }
+.alert-box.alerta  { background: #fef9c3; }
+.alert-box.critico { background: #fee2e2; }
+.alert-box.vencido { background: #fee2e2; }
+.alert-icon { font-size: 22px; flex-shrink: 0; }
+.alert-title { font-size: 12px; font-weight: 700; }
+.alert-sub   { font-size: 11px; opacity: .8; margin-top: 2px; }
+.alert-box.ok .alert-title, .alert-box.ok .alert-sub { color: #166534; }
+.alert-box.alerta  .alert-title, .alert-box.alerta  .alert-sub { color: #854d0e; }
+.alert-box.critico .alert-title, .alert-box.critico .alert-sub { color: #b91c1c; }
+.alert-box.vencido .alert-title, .alert-box.vencido .alert-sub { color: #b91c1c; }
+
+.detail { padding: 0 24px 18px; }
+.detail-grid { background: #f9fafb; border-radius: 10px; padding: 12px 14px; }
+.detail-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e5e7eb; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row span { color: #6b7280; }
+.detail-row strong { color: #111; }
+
+.card-footer { background: #f9fafb; padding: 10px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+.footer-txt { font-size: 10px; color: #c0c8d4; }
+
+.loading { text-align: center; padding: 40px; color: #9ca3af; font-size: 13px; }
+.error-msg { text-align: center; padding: 40px 20px; }
+.error-icon { font-size: 36px; margin-bottom: 12px; }
+.error-title { font-size: 15px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.error-sub { font-size: 13px; color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="loading">Cargando saldo…</div>
+</div>
+
+<script>
+const SCRIPT_URL = "TU_APPS_SCRIPT_URL_AQUI"; // ← mismo que admin.html
+const PARAMS     = new URLSearchParams(window.location.search);
+const STOCK_ID   = PARAMS.get("s")||PARAMS.get("stock")||"";
+
+const fmt      = d => !d?"—":new Date(d+"T12:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
+const fmtLong  = d => !d?"—":new Date(d+"T12:00:00").toLocaleDateString("es-AR",{day:"2-digit",month:"long",year:"numeric"});
+const diasHasta= f => Math.ceil((new Date(f+"T12:00:00")-new Date())/86400000);
+const alertNivel= f => { const d=diasHasta(f); return d<0?"vencido":d<=15?"critico":d<=30?"alerta":"ok"; };
+
+async function init() {
+  // DEMO MODE — sin parámetros de URL
+  let item = null;
+  if (!STOCK_ID) {
+    item = { id:"DEMO", empresa:"Bunge", contrato:"BU-2025-001", producto:"Urea", toneladas:"500", retirado:"120", puerto:"Rosario", posicion:"P-A1", fechaNegocio:"2025-01-15", fechaRetiro:"2026-08-30" };
+  } else {
+    try {
+      const res  = await fetch(`${SCRIPT_URL}?action=getStockItem&id=${STOCK_ID}`);
+      const json = await res.json();
+      item = json.data;
+    } catch {
+      renderError("Sin conexión","No se pudo cargar el saldo. Verificá tu conexión.");
+      return;
+    }
+    if (!item) { renderError("No encontrado","Este enlace de saldo no es válido o el stock fue eliminado."); return; }
+  }
+
+  const total    = Number(item.toneladas);
+  const retirado = Number(item.retirado||0);
+  const saldo    = total - retirado;
+  const pct      = Math.round((retirado/total)*100);
+  const nivel    = alertNivel(item.fechaRetiro);
+  const d        = diasHasta(item.fechaRetiro);
+
+  const alertCfg = {
+    ok:     { cls:"ok",     icon:"✅", title:`${d} días restantes`, sub:`Fecha límite: ${fmtLong(item.fechaRetiro)}` },
+    alerta: { cls:"alerta", icon:"⚠️", title:`Alerta — vence en ${d} días`, sub:`Fecha límite: ${fmtLong(item.fechaRetiro)}` },
+    critico:{ cls:"critico",icon:"🔴", title:`Crítico — vence en ${d} días`, sub:`Fecha límite: ${fmtLong(item.fechaRetiro)}` },
+    vencido:{ cls:"vencido",icon:"🚨", title:`Cupo vencido hace ${Math.abs(d)} días`, sub:`Venció el: ${fmtLong(item.fechaRetiro)}` },
+  }[nivel];
+
+  document.getElementById("card").innerHTML = `
+    <div class="card-header">
+      <div class="brand-row">
+        <div class="brand-icon">🌱</div>
+        <div class="brand-name">Campo Simple Fertilizante</div>
+      </div>
+      <div class="saldo-lbl">Tu saldo disponible</div>
+      <div class="saldo-num">${saldo.toLocaleString("es-AR")}</div>
+      <div class="saldo-unit">toneladas · ${item.producto}</div>
+      <div class="saldo-emp">${item.empresa} · ${item.puerto}</div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span>Retirado: ${retirado.toLocaleString()} t</span>
+        <span>Total: ${total.toLocaleString()} t</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-pct">${pct}% retirado</div>
+    </div>
+
+    <div class="alert-box ${alertCfg.cls}">
+      <div class="alert-icon">${alertCfg.icon}</div>
+      <div>
+        <div class="alert-title">${alertCfg.title}</div>
+        <div class="alert-sub">${alertCfg.sub}</div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="detail-grid">
+        ${[["Empresa",item.empresa],["Contrato",item.contrato],["Puerto",item.puerto],["Posición",item.posicion||"—"],["F. Negocio",fmt(item.fechaNegocio)]].map(([k,v])=>`<div class="detail-row"><span>${k}</span><strong>${v}</strong></div>`).join("")}
+      </div>
+    </div>
+
+    <div class="card-footer">
+      <span class="footer-txt">Actualizado: ${new Date().toLocaleDateString("es-AR")}</span>
+      <span class="footer-txt">Campo Simple Fertilizante</span>
+    </div>`;
+
+  document.title = `Mi saldo · ${saldo.toLocaleString()} t de ${item.producto} · Campo Simple`;
+}
+
+function renderError(title, msg) {
+  document.getElementById("card").innerHTML = `
+    <div class="error-msg">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">${title}</div>
+      <div class="error-sub">${msg}</div>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
