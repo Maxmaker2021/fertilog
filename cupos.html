@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campo Simple Fertilizante — Cupos</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; color: #111; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+
+.header { background: #2C703C; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.logo { width: 32px; height: 32px; background: rgba(255,255,255,.15); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.brand { color: #fff; font-size: 15px; font-weight: 600; }
+.brand-sub { color: rgba(255,255,255,.65); font-size: 11px; }
+.sync { font-size: 11px; }
+.sync.ok  { color: #86efac; }
+.sync.err { color: #fca5a5; }
+
+.tabs { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; gap: 0; overflow-x: auto; }
+.tab { padding: 12px 18px; font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; white-space: nowrap; }
+.tab:hover { color: #2C703C; }
+.tab.active { color: #2C703C; border-bottom-color: #2C703C; font-weight: 600; }
+.tab-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 99px; margin-left: 5px; }
+.tab-badge.red   { background: #ef4444; color: #fff; }
+.tab-badge.green { background: #2C703C; color: #fff; }
+.tab-badge.blue  { background: #1d4ed8; color: #fff; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* KPIs */
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 20px 24px 0; }
+.kpi { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #e5e7eb; }
+.kpi-val { font-size: 22px; font-weight: 700; }
+.kpi-val.green  { color: #2C703C; }
+.kpi-val.blue   { color: #1d4ed8; }
+.kpi-val.amber  { color: #d97706; }
+.kpi-val.red    { color: #dc2626; }
+.kpi-lbl { font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+/* Layout asignación */
+.asign-wrap { padding: 20px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.col-card { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+.col-header { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; display: flex; align-items: center; justify-content: space-between; }
+.col-title { font-size: 13px; font-weight: 700; color: #111; }
+.col-body { overflow-y: auto; max-height: calc(100vh - 280px); }
+
+/* OV cards */
+.ov-item { padding: 13px 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background .1s; }
+.ov-item:last-child { border-bottom: none; }
+.ov-item:hover { background: #f9fafb; }
+.ov-item.selected { background: #f0fdf4; border-left: 3px solid #2C703C; }
+.ov-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.ov-num { font-size: 12px; font-weight: 700; color: #1d4ed8; font-family: monospace; }
+.ov-cliente { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 3px; }
+.ov-meta { font-size: 11px; color: #6b7280; display: flex; gap: 10px; flex-wrap: wrap; }
+.ov-search { padding: 10px 14px; border-bottom: 1px solid #e5e7eb; }
+.ov-search input { width: 100%; border: 1px solid #e5e7eb; border-radius: 7px; padding: 7px 10px; font-size: 12px; outline: none; font-family: inherit; }
+.ov-search input:focus { border-color: #2C703C; }
+
+/* Stock candidatos */
+.stock-item { padding: 13px 16px; border-bottom: 1px solid #f3f4f6; }
+.stock-item:last-child { border-bottom: none; }
+.stock-item.fifo-top { background: #fefce8; border-left: 3px solid #d97706; }
+.stock-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.stock-meta { font-size: 11px; color: #6b7280; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; margin-bottom: 10px; }
+.fifo-label { display: inline-block; background: #fef9c3; color: #854d0e; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; letter-spacing: .3px; margin-left: 5px; }
+
+/* Asignación panel */
+.asign-panel { padding: 14px 16px; background: #f0fdf4; border-top: 1px solid #c6f6d5; }
+.asign-panel-title { font-size: 12px; font-weight: 700; color: #2C703C; margin-bottom: 10px; }
+.tons-input { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.tons-input input { border: 1px solid #d1d5db; border-radius: 7px; padding: 8px 10px; font-size: 14px; font-weight: 600; width: 120px; outline: none; font-family: inherit; }
+.tons-input input:focus { border-color: #2C703C; }
+.tons-input span { font-size: 12px; color: #6b7280; }
+
+/* Historial */
+.hist-wrap { padding: 0 24px 24px; overflow-x: auto; }
+
+/* Toolbar */
+.toolbar { padding: 14px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.search-wrap { flex: 1; min-width: 180px; display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 12px; }
+.search-wrap input { border: none; background: transparent; font-size: 13px; color: #111; width: 100%; outline: none; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e5e7eb; font-size: 13px; }
+thead { background: #f9fafb; }
+th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f9fafb; }
+
+/* Buttons */
+.btn { padding: 8px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; display: inline-flex; align-items: center; gap: 5px; }
+.btn-green  { background: #2C703C; color: #fff; }
+.btn-green:hover { background: #245f32; }
+.btn-white  { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+.btn-white:hover { background: #f9fafb; }
+.btn-wa     { background: #25D366; color: #fff; }
+.btn-wa:hover { background: #1ebe5a; }
+.btn-amber  { background: #d97706; color: #fff; }
+.btn-red    { background: #fff; color: #ef4444; border: 1px solid #fecaca; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.action-btn { padding: 4px 9px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; font-size: 11px; cursor: pointer; color: #374151; font-family: inherit; white-space: nowrap; }
+.action-btn:hover { background: #f3f4f6; }
+.action-btn.wa { border-color: #22c55e40; color: #16a34a; background: #f0fdf4; }
+.action-btn.red { color: #ef4444; border-color: #fecaca; }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.b-pendiente  { background: #f3f4f6; color: #374151; }
+.b-asignado   { background: #dbeafe; color: #1d4ed8; }
+.b-confirmado { background: #dcfce7; color: #166534; }
+.b-retirado   { background: #e9d5ff; color: #6b21a8; }
+.b-disponible { background: #dcfce7; color: #166534; }
+.b-alerta     { background: #fef9c3; color: #854d0e; }
+.b-critico    { background: #fee2e2; color: #b91c1c; }
+.b-vencido    { background: #fee2e2; color: #b91c1c; }
+.b-puerto     { background: #dbeafe; color: #1d4ed8; }
+.b-campo      { background: #fef9c3; color: #854d0e; }
+
+code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 11px; color: #1d4ed8; font-family: monospace; }
+
+/* Modal */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 14px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+.modal-header { padding: 18px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 15px; font-weight: 600; }
+.modal-close { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; justify-content: flex-end; }
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; }
+.field input, .field select { padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; color: #111; outline: none; font-family: inherit; width: 100%; }
+.field input:focus { border-color: #2C703C; box-shadow: 0 0 0 2px rgba(44,112,60,.1); }
+
+.summary-box { background: #f0fdf4; border: 1px solid #c6f6d5; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.summary-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #dcfce7; }
+.summary-row:last-child { border-bottom: none; }
+.info-box { background: #f0fdf4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #276749; margin-bottom: 12px; }
+.warn-box { background: #fef9c3; border: 1px solid #fde047; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #854d0e; margin-bottom: 12px; }
+
+.url-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; font-size: 11px; color: #1d4ed8; font-family: monospace; word-break: break-all; margin-bottom: 10px; }
+.empty { text-align: center; padding: 40px; color: #9ca3af; font-size: 13px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: #111; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 300; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 320px; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 900px) {
+  .asign-wrap { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🌱</div>
+    <div>
+      <div class="brand">Campo Simple Fertilizante</div>
+      <div class="brand-sub">Asignación de Cupos</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span class="sync" id="syncStatus" style="color:rgba(255,255,255,.7)">—</span>
+    <button class="btn btn-white" style="font-size:12px;padding:6px 12px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onclick="cargarDatos()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('asignar')">⚡ Asignar cupos <span class="tab-badge red" id="badgePendientes" style="display:none"></span></div>
+  <div class="tab" onclick="showTab('asignados')">📋 Cupos asignados <span class="tab-badge blue" id="badgeAsignados" style="display:none"></span></div>
+  <div class="tab" onclick="showTab('retiros')">✅ Retiros <span class="tab-badge green" id="badgeRetiros" style="display:none"></span></div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-val red"   id="kPendientes">—</div><div class="kpi-lbl">OVs sin cupo</div></div>
+  <div class="kpi"><div class="kpi-val blue"  id="kAsignados">—</div><div class="kpi-lbl">Cupos asignados</div></div>
+  <div class="kpi"><div class="kpi-val green" id="kConfirmados">—</div><div class="kpi-lbl">Confirmados</div></div>
+  <div class="kpi"><div class="kpi-val amber" id="kTonsPend">—</div><div class="kpi-lbl">Toneladas pendientes</div></div>
+</div>
+
+<!-- ═══════════════ ASIGNAR ═══════════════ -->
+<div class="panel active" id="panel-asignar">
+  <div class="asign-wrap">
+
+    <!-- Columna izquierda: OVs pendientes -->
+    <div class="col-card">
+      <div class="col-header">
+        <div class="col-title">OVs pendientes de cupo</div>
+        <span style="font-size:11px;color:#6b7280" id="countPend">—</span>
+      </div>
+      <div class="ov-search">
+        <input type="text" id="searchOV" placeholder="Buscar cliente, producto, N° orden…" oninput="renderOVsPendientes()">
+      </div>
+      <div class="col-body" id="listaOVs">
+        <div class="empty">Cargando…</div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: Stock disponible + asignación -->
+    <div class="col-card">
+      <div class="col-header">
+        <div class="col-title" id="stockColTitle">Seleccioná una OV</div>
+        <span style="font-size:11px;color:#6b7280" id="countStock">—</span>
+      </div>
+      <div class="col-body" id="listaStock">
+        <div class="empty" style="padding:60px 0">
+          <div style="font-size:32px;margin-bottom:10px">👈</div>
+          Seleccioná una OV de la izquierda para ver el stock disponible
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ ASIGNADOS ═══════════════ -->
+<div class="panel" id="panel-asignados">
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span>🔍</span>
+      <input type="text" id="searchAsig" placeholder="Buscar cliente, contrato, empresa…" oninput="renderAsignados()">
+    </div>
+    <select id="filtEstadoAsig" onchange="renderAsignados()">
+      <option value="">Todos los estados</option>
+      <option value="asignado">Asignado</option>
+      <option value="confirmado">Confirmado</option>
+    </select>
+    <button class="btn btn-white" onclick="exportarCSV()">↓ CSV</button>
+  </div>
+  <div class="hist-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>N° Orden</th>
+          <th>Cliente</th>
+          <th>Tipo</th>
+          <th>Producto</th>
+          <th>Toneladas</th>
+          <th>Empresa</th>
+          <th>Contrato</th>
+          <th>Puerto</th>
+          <th>F. Asignación</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tablaAsignados">
+        <tr><td colspan="11" class="empty">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════ RETIROS ═══════════════ -->
+<div class="panel" id="panel-retiros">
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span>🔍</span>
+      <input type="text" id="searchRet" placeholder="Buscar productor, patente, contrato…" oninput="renderRetiros()">
+    </div>
+    <button class="btn btn-white" onclick="exportarCSVRetiros()">↓ CSV</button>
+  </div>
+  <div class="hist-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>N° Orden</th>
+          <th>Productor</th>
+          <th>Producto</th>
+          <th>Toneladas</th>
+          <th>Empresa</th>
+          <th>Puerto</th>
+          <th>Patente</th>
+          <th>Chofer</th>
+          <th>F. Retiro</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tablaRetiros">
+        <tr><td colspan="11" class="empty">Sin retiros registrados</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR ASIGNACIÓN -->
+<div class="overlay" id="modalConfirmar" onclick="cerrarSiFuera(event,'modalConfirmar')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Confirmar asignación de cupo</div>
+      <button class="modal-close" onclick="cerrarModal('modalConfirmar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="summary-box" id="confirmResumen"></div>
+      <div class="warn-box">⚠ Al confirmar, las toneladas quedan <strong>reservadas</strong> en el stock. Se genera el link del formulario para el productor.</div>
+      <div class="field">
+        <label>Toneladas a asignar *</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="number" id="confirmTons" min="1" style="max-width:140px">
+          <span style="font-size:12px;color:#6b7280" id="confirmMaxTons"></span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Nombre del productor</label>
+        <input type="text" id="confirmProductor" placeholder="Nombre del productor / razón social">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-white" onclick="cerrarModal('modalConfirmar')">Cancelar</button>
+      <button class="btn btn-green" onclick="ejecutarAsignacion()">✓ Confirmar y generar formulario</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORMULARIO GENERADO -->
+<div class="overlay" id="modalFormulario">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✓ Cupo asignado — Formulario listo</div>
+      <button class="modal-close" onclick="cerrarModal('modalFormulario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="width:52px;height:52px;background:#e8f5e9;border-radius:50%;border:2px solid #4caf50;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 10px">✓</div>
+        <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px">Cupo asignado correctamente</div>
+        <div style="font-size:13px;color:#6b7280" id="formResumenTxt"></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">Link del formulario para el productor:</div>
+      <div class="url-box" id="formURL"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="btn btn-white btn-sm" onclick="copiarURL()">📋 Copiar link</button>
+        <button class="btn btn-white btn-sm" onclick="verFormulario()">👁 Ver formulario</button>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">Enviar al productor por WhatsApp:</div>
+      <button class="btn btn-wa" style="width:100%" onclick="enviarWA()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Enviar formulario por WhatsApp
+      </button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-white" onclick="cerrarModal('modalFormulario');renderKPIs();renderOVsPendientes();">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REGISTRAR RETIRO -->
+<div class="overlay" id="modalRetiro" onclick="cerrarSiFuera(event,'modalRetiro')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Registrar retiro</div>
+      <button class="modal-close" onclick="cerrarModal('modalRetiro')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="summary-box" id="retiroResumen"></div>
+      <div class="info-box">Al registrar el retiro, las toneladas pasan de <strong>asignado</strong> a <strong>descontado</strong> en el stock.</div>
+      <div class="field">
+        <label>Toneladas retiradas *</label>
+        <input type="number" id="retiroTons" min="1">
+      </div>
+      <div class="field">
+        <label>Fecha de retiro</label>
+        <input type="date" id="retiroFecha">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-white" onclick="cerrarModal('modalRetiro')">Cancelar</button>
+      <button class="btn btn-green" onclick="ejecutarRetiro()">✓ Confirmar retiro</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGjUklkpgXdSzk5o4JZ7fIfsTAj6NUPFikzX6TXcs-MYNiXbbwlI9El8k62SVWIf6Etw/exec";
+const BASE_URL   = window.location.href.replace('cupos.html','');
+const WA_CUPEADOR = '';  // se lee de config localStorage
+
+// ─── State ─────────────────────────────────────────────────────
+let OVS     = [];
+let STOCK   = [];
+let CUPOS   = [];   // asignaciones: { id, nroOrden, stockId, toneladas, productor, fechaAsignacion, estado, ... }
+let EMPRESAS= [];
+
+let ovSeleccionada   = null;
+let stockSeleccionado= null;
+let cupoEnCurso      = null;   // para modal retiro
+
+// ─── Persistencia ──────────────────────────────────────────────
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+
+// ─── Utils ─────────────────────────────────────────────────────
+const fmt       = d => !d ? '—' : new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+const fmtLong   = d => !d ? '—' : new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+const today     = () => new Date().toISOString().slice(0,10);
+const diasHasta = f => Math.ceil((new Date(f+'T12:00:00') - new Date()) / 86400000);
+const alertaN   = f => { const d=diasHasta(f); return d<0?'vencido':d<=15?'critico':d<=30?'alerta':'ok'; };
+const dispStock = s => Math.max(0, Number(s.toneladas) - Number(s.asignado||0) - Number(s.descontado||0));
+
+function empColor(nombre) {
+  const e = EMPRESAS.find(x => x.nombre === nombre);
+  return e ? e.color : '#6b7280';
+}
+function empBadge(nombre) {
+  const c = empColor(nombre);
+  return `<span style="font-size:11px;font-weight:700;background:${c}18;color:${c};padding:2px 8px;border-radius:4px;border:1px solid ${c}33">${nombre}</span>`;
+}
+function alertaBadge(f) {
+  if (!f) return '';
+  const n=alertaN(f), d=diasHasta(f);
+  const cfg={
+    vencido:{cls:'b-vencido',t:`Vencido`},
+    critico:{cls:'b-critico',t:`${d}d crítico`},
+    alerta: {cls:'b-alerta', t:`${d}d alerta`},
+    ok:     {cls:'b-disponible',t:`${d}d`},
+  }[n];
+  return `<span class="badge ${cfg.cls}">${cfg.t}</span>`;
+}
+
+function toast(msg, err=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? '#b91c1c' : '#111';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+function setSyncStatus(msg, cls='') {
+  const el = document.getElementById('syncStatus');
+  el.textContent = msg; el.className = 'sync ' + cls;
+}
+function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
+function cerrarSiFuera(e, id) { if (e.target === document.getElementById(id)) cerrarModal(id); }
+function showTab(tab) {
+  const tabs = ['asignar','asignados','retiros'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i]===tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  if (tab==='asignados') renderAsignados();
+  if (tab==='retiros')   renderRetiros();
+}
+
+// ─── API ────────────────────────────────────────────────────────
+// ─── API — usa GET para todo (evita CORS con POST) ─────────────
+async function apiGet(params) {
+  const url = SCRIPT_URL + "?" + new URLSearchParams(params).toString();
+  try {
+    const res  = await fetch(url);
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    console.error("apiGet error:", e);
+    return { ok: false, error: e.message };
+  }
+}
+
+async function apiPost(body) {
+  // Convierte POST a GET para evitar CORS
+  const params = { action: body.action };
+  if (body.data)      params.data      = encodeURIComponent(JSON.stringify(body.data));
+  if (body.rows)      params.data      = encodeURIComponent(JSON.stringify(body.rows));
+  if (body.updates)   params.data      = encodeURIComponent(JSON.stringify(body.updates));
+  if (body.id)        params.id        = body.id;
+  if (body.stockId)   params.stockId   = body.stockId;
+  if (body.cupoId)    params.cupoId    = body.cupoId;
+  if (body.nroOrden)  params.nroOrden  = body.nroOrden;
+  if (body.delta !== undefined) params.delta = body.delta;
+  if (body.toneladas) params.toneladas = body.toneladas;
+  if (body.fecha)     params.fecha     = body.fecha;
+  if (body.productor) params.productor = encodeURIComponent(body.productor);
+  if (body.estado)    params.data      = encodeURIComponent(JSON.stringify({ estadoLogistica: body.estado }));
+  return apiGet(params);
+}
+
+// ─── Cargar datos ───────────────────────────────────────────────
+async function cargarDatos() {
+  setSyncStatus('Sincronizando…');
+  try {
+    const res  = await fetch(SCRIPT_URL + '?action=getAll');
+    const json = await res.json();
+    if (json.ok) {
+      OVS      = json.ovs      || [];
+      STOCK    = json.stock    || [];
+      CUPOS    = json.cupos    || [];
+      EMPRESAS = json.empresas || [];
+      lsSet('csf_ovs',      OVS);
+      lsSet('csf_stock',    STOCK);
+      lsSet('csf_cupos',    CUPOS);
+      lsSet('csf_empresas', EMPRESAS);
+      setSyncStatus('✓ Sincronizado','ok');
+    } else throw new Error();
+  } catch {
+    OVS      = lsGet('csf_ovs')      || DEMO_OVS;
+    STOCK    = lsGet('csf_stock')    || DEMO_STOCK;
+    CUPOS    = lsGet('csf_cupos')    || [];
+    EMPRESAS = lsGet('csf_empresas') || DEMO_EMPRESAS;
+    setSyncStatus('⚡ Modo local','ok');
+  }
+  renderKPIs();
+  renderOVsPendientes();
+}
+
+// ─── KPIs ───────────────────────────────────────────────────────
+function renderKPIs() {
+  const ovsCupo  = new Set(CUPOS.map(c=>c.nroOrden));
+  const pendientes  = OVS.filter(o => !ovsCupo.has(o.nroOrden));
+  const asignados   = CUPOS.filter(c => c.estado==='asignado');
+  const confirmados = CUPOS.filter(c => c.estado==='confirmado');
+  const tonsPend    = pendientes.reduce((a,o)=>a+(parseFloat(String(o.cantidad||'').replace(/[^0-9.]/g,''))||0),0);
+
+  document.getElementById('kPendientes').textContent  = pendientes.length;
+  document.getElementById('kAsignados').textContent   = asignados.length;
+  document.getElementById('kConfirmados').textContent = confirmados.length;
+  document.getElementById('kTonsPend').textContent    = tonsPend.toLocaleString('es-AR')+' t';
+
+  const bp = document.getElementById('badgePendientes');
+  const ba = document.getElementById('badgeAsignados');
+  const br = document.getElementById('badgeRetiros');
+  bp.textContent=pendientes.length;  bp.style.display=pendientes.length?'':'none';
+  ba.textContent=asignados.length;   ba.style.display=asignados.length?'':'none';
+  br.textContent=confirmados.length; br.style.display=confirmados.length?'':'none';
+}
+
+// ─── OVs pendientes ─────────────────────────────────────────────
+function renderOVsPendientes() {
+  const q = document.getElementById('searchOV').value.toLowerCase();
+  const ovsCupo = new Set(CUPOS.map(c=>c.nroOrden));
+  const pendientes = OVS
+    .filter(o => !ovsCupo.has(o.nroOrden))
+    .filter(o => !q || [o.nroOrden,o.cliente,o.producto,o.proveedor].some(v=>String(v||'').toLowerCase().includes(q)));
+
+  document.getElementById('countPend').textContent = `${pendientes.length} OVs`;
+
+  if (!pendientes.length) {
+    document.getElementById('listaOVs').innerHTML = `<div class="empty"><div style="font-size:28px;margin-bottom:8px">🎉</div>Todas las OVs tienen cupo asignado</div>`;
+    return;
+  }
+
+  document.getElementById('listaOVs').innerHTML = pendientes.map(ov => {
+    const tons = String(ov.cantidad||'').replace(' tn','').replace(' t','').trim();
+    const isSelected = ovSeleccionada && ovSeleccionada.nroOrden === ov.nroOrden;
+    const tipoBadge = ov.tipo==='RETIRO_PUERTO'
+      ? '<span class="badge b-puerto" style="font-size:10px">🏭 Puerto</span>'
+      : '<span class="badge b-campo" style="font-size:10px">🌾 Campo</span>';
+    return `<div class="ov-item${isSelected?' selected':''}" onclick="seleccionarOV('${ov.nroOrden}')">
+      <div class="ov-item-head">
+        <code class="ov-num">${ov.nroOrden}</code>
+        ${tipoBadge}
+      </div>
+      <div class="ov-cliente">${ov.cliente}</div>
+      <div class="ov-meta">
+        <span>📦 ${ov.producto}</span>
+        <span>⚖ ${tons} t</span>
+        <span>🏢 ${ov.proveedor||'—'}</span>
+        <span>📅 ${fmt(ov.fechaEmision)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Seleccionar OV → buscar stock FIFO ─────────────────────────
+function seleccionarOV(nroOrden) {
+  ovSeleccionada = OVS.find(o => o.nroOrden === nroOrden);
+  if (!ovSeleccionada) return;
+
+  // Marcar seleccionada visualmente
+  document.querySelectorAll('.ov-item').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+
+  // Buscar stock disponible: mismo producto, mismo proveedor (si tiene), ordenado FIFO
+  const producto  = ovSeleccionada.producto || '';
+  const proveedor = ovSeleccionada.proveedor|| '';
+  const tons      = parseFloat(String(ovSeleccionada.cantidad||'').replace(/[^0-9.]/g,''))||0;
+
+  // Normalizar nombre producto para comparación flexible
+  const normProd = p => String(p||'').toLowerCase().replace(/[^a-z]/g,'');
+
+  let candidatos = STOCK
+    .filter(s => {
+      const dispOk  = dispStock(s) > 0;
+      const prodOk  = normProd(s.producto).includes(normProd(producto)) || normProd(producto).includes(normProd(s.producto));
+      const provOk  = !proveedor || s.empresa.toLowerCase().includes(proveedor.toLowerCase()) || proveedor.toLowerCase().includes(s.empresa.toLowerCase());
+      return dispOk && prodOk && provOk;
+    })
+    .sort((a,b) => new Date(a.fechaNegocio) - new Date(b.fechaNegocio)); // FIFO
+
+  // Si no hay match exacto de proveedor, mostrar todos con ese producto
+  if (!candidatos.length) {
+    candidatos = STOCK
+      .filter(s => dispStock(s)>0 && (normProd(s.producto).includes(normProd(producto)) || normProd(producto).includes(normProd(s.producto))))
+      .sort((a,b) => new Date(a.fechaNegocio)-new Date(b.fechaNegocio));
+  }
+
+  document.getElementById('stockColTitle').textContent = `Stock disponible — ${producto}`;
+  document.getElementById('countStock').textContent    = `${candidatos.length} posición${candidatos.length!==1?'es':''}`;
+
+  if (!candidatos.length) {
+    document.getElementById('listaStock').innerHTML = `<div class="empty"><div style="font-size:28px;margin-bottom:8px">⚠️</div>Sin stock disponible para <strong>${producto}</strong></div>`;
+    return;
+  }
+
+  const fifoId = candidatos[0]?.id;
+
+  document.getElementById('listaStock').innerHTML = candidatos.map((s,i) => {
+    const disp = dispStock(s);
+    const isFifo = s.id === fifoId;
+    const alerta = alertaN(s.fechaRetiro);
+    const alcanza = disp >= tons;
+    return `<div class="stock-item${isFifo?' fifo-top':''}">
+      <div class="stock-item-head">
+        <div>${empBadge(s.empresa)}${isFifo?'<span class="fifo-label">FIFO ★</span>':''}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${alertaBadge(s.fechaRetiro)}
+          ${!alcanza?`<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px">Stock insuf.</span>`:''}
+        </div>
+      </div>
+      <div class="stock-meta">
+        <span>📄 Contrato: <strong>${s.contrato}</strong></span>
+        <span>🚢 Puerto: ${s.puerto}</span>
+        <span>📅 Negocio: ${fmt(s.fechaNegocio)}</span>
+        <span>📅 Retiro: ${fmt(s.fechaRetiro)}</span>
+        <span>⚖ Total: ${Number(s.toneladas).toLocaleString('es-AR')} t</span>
+        <span style="color:#2C703C;font-weight:700">✅ Disponible: ${disp.toLocaleString('es-AR')} t</span>
+      </div>
+      <div class="asign-panel">
+        <div class="asign-panel-title">Asignar cupo de esta posición</div>
+        <div class="tons-input">
+          <input type="number" id="tons_${s.id}" value="${Math.min(tons,disp)}" min="1" max="${disp}" placeholder="Toneladas">
+          <span>de ${disp.toLocaleString('es-AR')} t disponibles</span>
+        </div>
+        <button class="btn btn-green btn-sm" onclick="abrirConfirmar('${s.id}')">
+          ✓ Asignar este cupo
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Confirmar asignación ───────────────────────────────────────
+function abrirConfirmar(stockId) {
+  if (!ovSeleccionada) return;
+  stockSeleccionado = STOCK.find(s => s.id === stockId);
+  if (!stockSeleccionado) return;
+
+  const tons = +document.getElementById('tons_'+stockId).value;
+  const disp = dispStock(stockSeleccionado);
+  if (!tons || tons < 1) { toast('Ingresá las toneladas a asignar',true); return; }
+  if (tons > disp) { toast(`Máximo disponible: ${disp} t`,true); return; }
+
+  document.getElementById('confirmTons').value      = tons;
+  document.getElementById('confirmMaxTons').textContent = `máx ${disp.toLocaleString('es-AR')} t disponibles`;
+  document.getElementById('confirmProductor').value = ovSeleccionada.cliente || '';
+
+  document.getElementById('confirmResumen').innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:#2C703C;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Resumen de asignación</div>
+    ${[
+      ['OV',         ovSeleccionada.nroOrden],
+      ['Cliente',    ovSeleccionada.cliente],
+      ['Producto',   ovSeleccionada.producto],
+      ['Toneladas',  `${tons.toLocaleString('es-AR')} t`],
+      ['Empresa',    stockSeleccionado.empresa],
+      ['Contrato',   stockSeleccionado.contrato],
+      ['Puerto',     stockSeleccionado.puerto],
+      ['F. Retiro',  fmt(stockSeleccionado.fechaRetiro)],
+    ].map(([k,v])=>`<div class="summary-row"><span style="color:#6b7280">${k}</span><strong>${v}</strong></div>`).join('')}
+  `;
+  document.getElementById('modalConfirmar').classList.add('open');
+}
+
+async function ejecutarAsignacion() {
+  const tons     = +document.getElementById('confirmTons').value;
+  const productor= document.getElementById('confirmProductor').value.trim();
+  if (!tons || tons < 1) { toast('Ingresá las toneladas',true); return; }
+  if (!stockSeleccionado || !ovSeleccionada) return;
+
+  const disp = dispStock(stockSeleccionado);
+  if (tons > disp) { toast(`Máximo disponible: ${disp} t`,true); return; }
+
+  // 1. Crear cupo
+  const cupo = {
+    id:             'CUP-'+Date.now(),
+    nroOrden:       ovSeleccionada.nroOrden,
+    cliente:        ovSeleccionada.cliente,
+    cuit:           ovSeleccionada.cuit,
+    tipo:           ovSeleccionada.tipo,
+    producto:       ovSeleccionada.producto,
+    toneladas:      tons,
+    stockId:        stockSeleccionado.id,
+    empresa:        stockSeleccionado.empresa,
+    contrato:       stockSeleccionado.contrato,
+    puerto:         stockSeleccionado.puerto,
+    posicion:       stockSeleccionado.posicion,
+    fechaRetiroStock: stockSeleccionado.fechaRetiro,
+    productor:      productor,
+    lat:            ovSeleccionada.lat||'',
+    lng:            ovSeleccionada.lng||'',
+    fechaAsignacion: today(),
+    estado:         'asignado',
+  };
+
+  // 2. Actualizar stock local
+  const sIdx = STOCK.findIndex(s => s.id === stockSeleccionado.id);
+  if (sIdx >= 0) STOCK[sIdx].asignado = Number(STOCK[sIdx].asignado||0) + tons;
+
+  // 3. Actualizar OV local
+  const oIdx = OVS.findIndex(o => o.nroOrden === ovSeleccionada.nroOrden);
+  if (oIdx >= 0) OVS[oIdx].estadoLogistica = 'asignado';
+
+  CUPOS.push(cupo);
+  lsSet('csf_cupos', CUPOS);
+  lsSet('csf_stock', STOCK);
+  lsSet('csf_ovs',   OVS);
+
+  // 4. Persistir en Apps Script
+  await apiPost({ action:'addCupo',  data: cupo });
+  await apiPost({ action:'actualizarStockAsignado', stockId: stockSeleccionado.id, delta: tons });
+  await apiPost({ action:'actualizarEstadoOV', nroOrden: ovSeleccionada.nroOrden, estado:'asignado' });
+
+  cerrarModal('modalConfirmar');
+  mostrarFormularioGenerado(cupo);
+  ovSeleccionada = null; stockSeleccionado = null;
+}
+
+// ─── Formulario generado ────────────────────────────────────────
+function mostrarFormularioGenerado(cupo) {
+  const url = `${BASE_URL}form.html?s=${cupo.stockId}&ov=${cupo.nroOrden}&prod=${encodeURIComponent(cupo.productor)}&tons=${cupo.toneladas}&puerto=${encodeURIComponent(cupo.puerto)}`;
+  document.getElementById('formURL').textContent = url;
+  document.getElementById('formResumenTxt').textContent = `${cupo.toneladas} t de ${cupo.producto} · ${cupo.empresa} · ${cupo.puerto}`;
+
+  // Guardar URL en cupo para WhatsApp
+  cupo._formURL = url;
+  const idx = CUPOS.findIndex(c => c.id === cupo.id);
+  if (idx >= 0) CUPOS[idx] = cupo;
+  lsSet('csf_cupos', CUPOS);
+
+  document.getElementById('modalFormulario').classList.add('open');
+  renderKPIs();
+  renderOVsPendientes();
+}
+
+function copiarURL() {
+  const url = document.getElementById('formURL').textContent;
+  navigator.clipboard.writeText(url).then(()=>toast('Link copiado ✓'));
+}
+function verFormulario() {
+  window.open(document.getElementById('formURL').textContent,'_blank');
+}
+function enviarWA() {
+  const url   = document.getElementById('formURL').textContent;
+  const resumen = document.getElementById('formResumenTxt').textContent;
+  // Extraer productor del URL
+  const prod  = new URLSearchParams(url.split('?')[1]).get('prod') || 'productor';
+  const msg = encodeURIComponent(
+`🌾 *¡Hola ${prod}!*
+
+Gracias por tu compra en *Campo Simple Fertilizante* 🎉
+
+Tu cupo de fertilizante fue asignado. Completá el formulario para gestionar el retiro.
+⚠️ *Recordá gestionarlo con al menos 48 hs de anticipación.*
+
+📦 *${resumen}*
+
+👇 Completá el formulario:
+${url}
+
+_Campo Simple Fertilizante_`);
+  window.open('https://wa.me/?text='+msg,'_blank');
+  toast('Abriendo WhatsApp…');
+}
+
+// ─── Tabla asignados ────────────────────────────────────────────
+function renderAsignados() {
+  const q   = document.getElementById('searchAsig').value.toLowerCase();
+  const est = document.getElementById('filtEstadoAsig').value;
+  const data= CUPOS
+    .filter(c => (!est || c.estado===est) && (!q || [c.nroOrden,c.cliente,c.contrato,c.empresa,c.productor].some(v=>String(v||'').toLowerCase().includes(q))))
+    .sort((a,b) => b.fechaAsignacion.localeCompare(a.fechaAsignacion));
+
+  if (!data.length) {
+    document.getElementById('tablaAsignados').innerHTML=`<tr><td colspan="11" class="empty">Sin cupos asignados todavía</td></tr>`;
+    return;
+  }
+
+  const estadoBadge = e => ({
+    asignado:   '<span class="badge b-asignado">📋 Asignado</span>',
+    confirmado: '<span class="badge b-confirmado">✅ Confirmado</span>',
+    retirado:   '<span class="badge b-retirado">📦 Retirado</span>',
+  }[e]||`<span class="badge b-pendiente">${e}</span>`);
+
+  document.getElementById('tablaAsignados').innerHTML = data.map(c=>`<tr>
+    <td><code>${c.nroOrden}</code></td>
+    <td><strong>${c.cliente}</strong><br><span style="font-size:11px;color:#9ca3af">${c.productor||'—'}</span></td>
+    <td>${c.tipo==='RETIRO_PUERTO'?'<span class="badge b-puerto">🏭 Puerto</span>':'<span class="badge b-campo">🌾 Campo</span>'}</td>
+    <td>${c.producto}</td>
+    <td><strong>${Number(c.toneladas).toLocaleString('es-AR')} t</strong></td>
+    <td>${empBadge(c.empresa)}</td>
+    <td><code>${c.contrato}</code></td>
+    <td>${c.puerto}</td>
+    <td style="font-size:12px">${fmt(c.fechaAsignacion)}</td>
+    <td>${estadoBadge(c.estado)}</td>
+    <td><div style="display:flex;gap:5px;">
+      <button class="action-btn" onclick="reenviarFormulario('${c.id}')">🔗 Form</button>
+      ${c.estado==='asignado'?`<button class="action-btn" style="color:#2C703C;border-color:#c6f6d5" onclick="abrirRetiro('${c.id}')">✓ Retiro</button>`:''}
+    </div></td>
+  </tr>`).join('');
+}
+
+function reenviarFormulario(cupoId) {
+  const c = CUPOS.find(x=>x.id===cupoId);
+  if (!c) return;
+  const url = c._formURL || `${BASE_URL}form.html?s=${c.stockId}&ov=${c.nroOrden}&prod=${encodeURIComponent(c.productor||'')}&tons=${c.toneladas}&puerto=${encodeURIComponent(c.puerto)}`;
+  navigator.clipboard.writeText(url).then(()=>toast('Link copiado ✓'));
+}
+
+// ─── Retiro ─────────────────────────────────────────────────────
+function abrirRetiro(cupoId) {
+  cupoEnCurso = CUPOS.find(c=>c.id===cupoId);
+  if (!cupoEnCurso) return;
+  document.getElementById('retiroTons').value  = cupoEnCurso.toneladas;
+  document.getElementById('retiroFecha').value = today();
+  document.getElementById('retiroResumen').innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:#2C703C;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Datos del retiro</div>
+    ${[['OV',cupoEnCurso.nroOrden],['Cliente',cupoEnCurso.cliente],['Producto',cupoEnCurso.producto],['Empresa',cupoEnCurso.empresa],['Puerto',cupoEnCurso.puerto],['Contrato',cupoEnCurso.contrato]]
+      .map(([k,v])=>`<div class="summary-row"><span style="color:#6b7280">${k}</span><strong>${v}</strong></div>`).join('')}`;
+  document.getElementById('modalRetiro').classList.add('open');
+}
+
+async function ejecutarRetiro() {
+  if (!cupoEnCurso) return;
+  const tons  = +document.getElementById('retiroTons').value;
+  const fecha = document.getElementById('retiroFecha').value;
+  if (!tons) { toast('Ingresá las toneladas',true); return; }
+
+  // Actualizar cupo
+  const cIdx = CUPOS.findIndex(c=>c.id===cupoEnCurso.id);
+  if (cIdx>=0) { CUPOS[cIdx].estado='confirmado'; CUPOS[cIdx].fechaRetiroReal=fecha; }
+
+  // Actualizar stock: mover de asignado a descontado
+  const sIdx = STOCK.findIndex(s=>s.id===cupoEnCurso.stockId);
+  if (sIdx>=0) {
+    STOCK[sIdx].asignado   = Math.max(0, Number(STOCK[sIdx].asignado||0)   - tons);
+    STOCK[sIdx].descontado = Number(STOCK[sIdx].descontado||0) + tons;
+  }
+
+  // Actualizar OV
+  const oIdx = OVS.findIndex(o=>o.nroOrden===cupoEnCurso.nroOrden);
+  if (oIdx>=0) OVS[oIdx].estadoLogistica='retirado';
+
+  lsSet('csf_cupos', CUPOS);
+  lsSet('csf_stock', STOCK);
+  lsSet('csf_ovs',   OVS);
+
+  await apiPost({ action:'confirmarRetiro', cupoId:cupoEnCurso.id, stockId:cupoEnCurso.stockId, toneladas:tons, fecha });
+  await apiPost({ action:'actualizarEstadoOV', nroOrden:cupoEnCurso.nroOrden, estado:'retirado' });
+
+  cerrarModal('modalRetiro');
+  renderKPIs(); renderAsignados(); renderRetiros();
+  toast(`Retiro registrado: ${tons} t de ${cupoEnCurso.producto} ✓`);
+
+  // Generar WA de confirmación
+  setTimeout(()=>{
+    const saldo = STOCK.find(s=>s.id===cupoEnCurso.stockId);
+    const disp  = saldo ? Math.max(0, Number(saldo.toneladas)-Number(saldo.asignado||0)-Number(saldo.descontado||0)) : 0;
+    if (confirm('¿Enviar confirmación de retiro por WhatsApp al productor?')) {
+      const saldoURL = `${BASE_URL}saldo.html?s=${cupoEnCurso.stockId}`;
+      const msg = encodeURIComponent(
+`✅ *Retiro registrado · Campo Simple Fertilizante*
+
+Hola *${cupoEnCurso.productor||cupoEnCurso.cliente}*, gracias por confiar en nosotros.
+
+Se registró el retiro de *${tons} t* de *${cupoEnCurso.producto}*.
+
+📊 *Tu saldo actualizado:*
+📦 ${cupoEnCurso.producto} — *${disp.toLocaleString('es-AR')} t* restantes
+🚢 Puerto: ${cupoEnCurso.puerto}
+📅 Vence: ${fmtLong(cupoEnCurso.fechaRetiroStock)}
+
+🔗 Ver tu saldo: ${saldoURL}
+
+_Campo Simple Fertilizante_`);
+      window.open('https://wa.me/?text='+msg,'_blank');
+    }
+  }, 500);
+  cupoEnCurso = null;
+}
+
+// ─── Tabla retiros ──────────────────────────────────────────────
+function renderRetiros() {
+  const q    = document.getElementById('searchRet').value.toLowerCase();
+  const data = CUPOS
+    .filter(c => c.estado==='confirmado' && (!q || [c.nroOrden,c.productor,c.cliente,c.contrato].some(v=>String(v||'').toLowerCase().includes(q))))
+    .sort((a,b) => (b.fechaRetiroReal||'').localeCompare(a.fechaRetiroReal||''));
+
+  document.getElementById('badgeRetiros').textContent = data.length;
+  document.getElementById('badgeRetiros').style.display = data.length ? '' : 'none';
+
+  if (!data.length) {
+    document.getElementById('tablaRetiros').innerHTML=`<tr><td colspan="11" class="empty">Sin retiros confirmados</td></tr>`;
+    return;
+  }
+  document.getElementById('tablaRetiros').innerHTML = data.map(c=>`<tr>
+    <td><code>${c.nroOrden}</code></td>
+    <td>${c.productor||c.cliente}</td>
+    <td>${c.producto}</td>
+    <td><strong>${Number(c.toneladas).toLocaleString('es-AR')} t</strong></td>
+    <td>${empBadge(c.empresa)}</td>
+    <td>${c.puerto}</td>
+    <td style="font-size:12px">—</td>
+    <td style="font-size:12px">—</td>
+    <td style="font-size:12px">${fmt(c.fechaRetiroReal||c.fechaAsignacion)}</td>
+    <td><span class="badge b-confirmado">✅ Retirado</span></td>
+    <td><button class="action-btn" onclick="verSaldo('${c.stockId}')">Ver saldo</button></td>
+  </tr>`).join('');
+}
+
+function verSaldo(stockId) {
+  window.open(`${BASE_URL}saldo.html?s=${stockId}`,'_blank');
+}
+
+// ─── Exportar ───────────────────────────────────────────────────
+function exportarCSV() {
+  if (!CUPOS.length) { toast('Sin datos para exportar',true); return; }
+  const h = ['id','nroOrden','cliente','tipo','producto','toneladas','empresa','contrato','puerto','productor','fechaAsignacion','estado'];
+  const rows = CUPOS.map(c=>h.map(k=>`"${String(c[k]||'').replace(/"/g,'""')}"`));
+  const csv  = [h.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='cupos.csv'; a.click();
+  toast('CSV exportado');
+}
+function exportarCSVRetiros() {
+  const data = CUPOS.filter(c=>c.estado==='confirmado');
+  if (!data.length) { toast('Sin retiros',true); return; }
+  const h = ['id','nroOrden','cliente','producto','toneladas','empresa','contrato','puerto','productor','fechaRetiroReal'];
+  const rows = data.map(c=>h.map(k=>`"${String(c[k]||'').replace(/"/g,'""')}"`));
+  const csv  = [h.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='retiros.csv'; a.click();
+}
+
+// ─── Demo data ──────────────────────────────────────────────────
+const DEMO_EMPRESAS = [
+  {id:'E1',nombre:'Bunge', color:'#1565C0',puertos:['Rosario','Bahía Blanca']},
+  {id:'E2',nombre:'CHS',   color:'#6A1B9A',puertos:['Rosario','San Lorenzo']},
+  {id:'E3',nombre:'LDC',   color:'#AD1457',puertos:['San Lorenzo','Rosario']},
+];
+const DEMO_OVS = [
+  {nroOrden:'6091',cliente:'Marcos Torres',   cuit:'30527933079',producto:'Urea',cantidad:'180 tn',proveedor:'L.D.C. ARGENTINA S.A.',tipo:'RETIRO_PUERTO',fechaEmision:'2026-05-05',estadoLogistica:'Pendiente'},
+  {nroOrden:'6103',cliente:'Leandro Alarcon', cuit:'30528829801',producto:'Urea',cantidad:'90 t',  proveedor:'L.D.C. ARGENTINA S.A.',tipo:'DESTINO_CAMPO', fechaEmision:'2026-05-06',estadoLogistica:'Pendiente',lat:'-33.45',lng:'-60.78'},
+  {nroOrden:'6110',cliente:'Juan Rodríguez',  cuit:'20301234567',producto:'MAP', cantidad:'200 t', proveedor:'Bunge',               tipo:'RETIRO_PUERTO',fechaEmision:'2026-05-04',estadoLogistica:'Pendiente'},
+];
+const DEMO_STOCK = [
+  {id:'S001',empresa:'Bunge', contrato:'BU-2024-001',producto:'Urea',toneladas:800, puerto:'Rosario',     fechaNegocio:'2024-01-10',fechaRetiro:'2026-06-10',asignado:0,descontado:120},
+  {id:'S002',empresa:'LDC',   contrato:'LDC-2024-01',producto:'Urea',toneladas:600, puerto:'Rosario',     fechaNegocio:'2024-01-20',fechaRetiro:'2026-05-20',asignado:0,descontado:0},
+  {id:'S003',empresa:'Bunge', contrato:'BU-2024-002',producto:'MAP', toneladas:400, puerto:'Bahía Blanca',fechaNegocio:'2024-02-15',fechaRetiro:'2026-07-15',asignado:0,descontado:0},
+  {id:'S004',empresa:'CHS',   contrato:'CHS-2024-01',producto:'Urea',toneladas:600, puerto:'San Lorenzo', fechaNegocio:'2024-01-05',fechaRetiro:'2026-05-28',asignado:0,descontado:200},
+];
+
+// ─── Init ────────────────────────────────────────────────────────
+cargarDatos();
+</script>
+</body>
+</html>
